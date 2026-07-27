@@ -174,26 +174,45 @@ contain one. Opening the root produces a file browser with no build configuratio
 
 Settings, then Build, Execution, Deployment, then Toolchains.
 
-Leave the C and C++ compiler fields at their defaults. Do not set them to
-`arm-none-eabi-gcc`.
+The list on the left is toolchain types, and there is no ARM entry. Do not modify the
+Visual Studio or MinGW entry. Add a new one with the `+` button and choose System.
 
-This is intentional, and is the step most often assumed to be missing. The cross compiler
-is selected by the SDK, not by CLion. During configuration the SDK loads
-`cmake/preload/toolchains/pico_arm_gcc.cmake`, which locates `arm-none-eabi-gcc` and assigns
-`CMAKE_C_COMPILER` and `CMAKE_CXX_COMPILER` directly. That occurs before the project is
-processed and takes precedence regardless of the toolchain settings in CLion.
+Name it `Pico ARM GCC` and set:
 
-The compiler fields in CLion's toolchain apply to CLion's own validation, which runs against
-the host. Setting them to the cross compiler causes CLion to build a host test program with
-a compiler that cannot produce host binaries, and configuration fails with "the C compiler
-is not able to compile a simple test program" before the project is reached.
+- C Compiler: `arm-none-eabi-gcc.exe`
+- C++ Compiler: `arm-none-eabi-g++.exe`
+- Debugger: `arm-none-eabi-gdb.exe`, not the bundled debugger, which cannot debug an ARM target
+- CMake and Build Tool: leave as bundled or detected, these are not architecture specific
+
+All three executables are in the same `bin` directory. Locate it with:
+
+```bash
+(Get-Command arm-none-eabi-gcc).Source
+```
+
+Then open Settings, Build, Execution, Deployment, CMake and set Toolchain on the project
+profile to `Pico ARM GCC`. Other projects continue to use the default toolchain.
+
+Setting the compilers here is not strictly required. The SDK loads
+`cmake/preload/toolchains/pico_arm_gcc.cmake` during configuration, which locates
+`arm-none-eabi-gcc` and assigns `CMAKE_C_COMPILER` and `CMAKE_CXX_COMPILER` itself, so the
+build uses the cross compiler regardless. Configuring it explicitly selects the correct
+debugger and makes the intent visible, which is why it is worth doing.
+
+The cross compiler works here because the SDK toolchain file also sets `CMAKE_SYSTEM_NAME`
+to `PICO` and supplies `cmake/Platform/PICO.cmake`, so CMake validates the compiler as a
+cross compiler rather than a host one.
+
+This is also why a plain CLion C project must not be used for Pico work. Without the SDK
+toolchain file nothing sets `CMAKE_SYSTEM_NAME`, CMake attempts to link a host test binary
+with a bare metal compiler, and configuration fails with "the C compiler is not able to
+compile a simple test program". Always open `firmware/pico`, which already configures the
+SDK.
 
 If the compiler cannot be located the failure is different and explicit:
 "Compiler 'arm-none-eabi-gcc' not found, you can specify search path with
 PICO_TOOLCHAIN_PATH". That is resolved with the environment variable in step 3, not in this
 dialog.
-
-Confirm that CMake and Build Tool are populated. The bundled versions are sufficient.
 
 ### CMake profile
 
@@ -258,7 +277,9 @@ The Arm toolchain is not installed, or is installed outside `PATH`. Set
 `PICO_TOOLCHAIN_PATH`, see step 3. Do not set the compiler in CLion's toolchain settings.
 
 **"The C compiler is not able to compile a simple test program"**
-The ARM compiler has been set in CLion's toolchain settings. Clear those fields, see step 6.
+The project being configured is not the SDK project, so nothing sets `CMAKE_SYSTEM_NAME` and
+CMake tests the cross compiler as a host compiler. Open `firmware/pico` rather than a plain
+C project or the repository root.
 
 **A configuration change has no effect**
 `CMakeCache.txt` retains the previous value. Delete the `build` directory and configure again.
