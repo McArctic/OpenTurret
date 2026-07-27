@@ -31,6 +31,10 @@ Recommended for a machine being configured from scratch. Download the current re
 It installs the SDK, the Arm toolchain, CMake, Ninja, OpenOCD and picotool, and configures
 `PICO_SDK_PATH` automatically. Continue at step 3.
 
+This repository was archived in September 2024 and its final release provides SDK 1.5.1,
+which is the version this project is built against. It remains suitable for that reason,
+but it will not receive newer SDK versions. Use Option B if a later SDK is needed.
+
 ### Option B, winget
 
 Offers more control, and is preferable if some components are already present. Run each

@@ -23,7 +23,7 @@ In CLion, open `firmware/pico` rather than the repository root. That directory c
 ## Requirements
 
 - [Pico SDK](https://github.com/raspberrypi/pico-sdk)
-- [Arm GNU toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) (arm-none-eabi)
+- [Arm GNU toolchain](https://learn.arm.com/install-guides/gcc/arm-gnu/) (arm-none-eabi)
 - [CMake](https://cmake.org/download/)
 - [Ninja](https://github.com/ninja-build/ninja/releases)
 
