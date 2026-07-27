@@ -73,12 +73,14 @@ cause.
 Prefer an install path without spaces. Paths containing spaces are supported but interact
 poorly with some tooling.
 
-## 3. Configure PICO_SDK_PATH
+## 3. Configure environment variables
 
-The SDK is stored outside the repository and its location differs per machine. This
-variable resolves that. No path is hardcoded in the repository.
+Two paths differ between machines: the SDK and the compiler. Both are supplied through
+environment variables so that no path is hardcoded in the repository.
 
-Set it to the directory containing `pico_sdk_init.cmake`.
+### PICO_SDK_PATH
+
+Required. Set it to the directory containing `pico_sdk_init.cmake`.
 
 PowerShell, user scope, no administrator rights required:
 
@@ -98,6 +100,37 @@ Confirm the value:
 ```bash
 echo $env:PICO_SDK_PATH
 ```
+
+### PICO_TOOLCHAIN_PATH
+
+Only required if the Arm toolchain is not on `PATH`. Check first:
+
+```bash
+(Get-Command arm-none-eabi-gcc).Source
+```
+
+If that prints a path, the toolchain is discoverable and nothing further is needed. The Arm
+installer normally adds its `bin` directory to `PATH`, so this is the usual case.
+
+If it reports that the command is not found, the compiler is installed somewhere the build
+cannot see. Locate it:
+
+```bash
+Get-ChildItem "C:\Program Files*\Arm GNU Toolchain*" -Recurse -Filter arm-none-eabi-gcc.exe -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+```
+
+Then set `PICO_TOOLCHAIN_PATH` to the toolchain root, meaning the directory that contains
+`bin`, not `bin` itself:
+
+```bash
+[Environment]::SetEnvironmentVariable('PICO_TOOLCHAIN_PATH','C:\Program Files (x86)\Arm GNU Toolchain arm-none-eabi\14.2 rel1','User')
+```
+
+The version number is part of the path and differs between installations. Determine the
+value on each machine rather than copying it.
+
+The SDK searches `PICO_TOOLCHAIN_PATH` first and falls back to `PATH`, so setting this
+variable also allows a specific toolchain version to be selected when several are present.
 
 ## 4. Clone and build
 
@@ -140,11 +173,21 @@ Settings, then Build, Execution, Deployment, then Toolchains.
 Leave the C and C++ compiler fields at their defaults. Do not set them to
 `arm-none-eabi-gcc`.
 
-This is intentional. The SDK selects the ARM compiler through a CMake toolchain file
-before the project is configured, and the compiler defined in CLion's toolchain settings
-is used only for CLion's own validation. Overriding it causes CLion to compile a host test
-program with the cross compiler, which fails with "the C compiler is not able to compile a
-simple test program" before the project is processed.
+This is intentional, and is the step most often assumed to be missing. The cross compiler
+is selected by the SDK, not by CLion. During configuration the SDK loads
+`cmake/preload/toolchains/pico_arm_gcc.cmake`, which locates `arm-none-eabi-gcc` and assigns
+`CMAKE_C_COMPILER` and `CMAKE_CXX_COMPILER` directly. That occurs before the project is
+processed and takes precedence regardless of the toolchain settings in CLion.
+
+The compiler fields in CLion's toolchain apply to CLion's own validation, which runs against
+the host. Setting them to the cross compiler causes CLion to build a host test program with
+a compiler that cannot produce host binaries, and configuration fails with "the C compiler
+is not able to compile a simple test program" before the project is reached.
+
+If the compiler cannot be located the failure is different and explicit:
+"Compiler 'arm-none-eabi-gcc' not found, you can specify search path with
+PICO_TOOLCHAIN_PATH". That is resolved with the environment variable in step 3, not in this
+dialog.
 
 Confirm that CMake and Build Tool are populated. The bundled versions are sufficient.
 
@@ -154,7 +197,8 @@ Settings, then Build, Execution, Deployment, then CMake.
 
 - Generator: Ninja
 - Build directory: `build`
-- Environment: add `PICO_SDK_PATH` here if it was not set system wide in step 3
+- Environment: add `PICO_SDK_PATH`, and `PICO_TOOLCHAIN_PATH` if it was needed, here if
+  they were not set system wide in step 3
 
 Then select Tools, CMake, Reset Cache and Reload Project.
 
@@ -187,8 +231,11 @@ All machine specific state is already excluded from version control:
 - `.idea/` is ignored, as it records CLion paths valid on one machine only
 - The SDK is external to the repository and located through `PICO_SDK_PATH`
 
-On an additional machine, complete steps 1 through 3 once, then clone and build. The SDK
-may reside at a different path on each machine with no repository changes.
+On an additional machine, complete steps 1 through 3 once, then clone and build. The SDK and
+the toolchain may reside at different paths on each machine with no repository changes.
+Toolchain paths in particular include a version number, so they rarely match between
+installations. Resolve them per machine using the commands in step 3 and never copy a path
+from another system.
 
 Pull before starting work and push when finished, otherwise changes will have to be merged
 between machines.
@@ -201,6 +248,10 @@ between machines.
 **"Directory does not appear to contain the Raspberry Pi Pico SDK"**
 The variable resolves one level away from the correct directory. It must reference the
 directory containing `pico_sdk_init.cmake`.
+
+**"Compiler 'arm-none-eabi-gcc' not found"**
+The Arm toolchain is not installed, or is installed outside `PATH`. Set
+`PICO_TOOLCHAIN_PATH`, see step 3. Do not set the compiler in CLion's toolchain settings.
 
 **"The C compiler is not able to compile a simple test program"**
 The ARM compiler has been set in CLion's toolchain settings. Clear those fields, see step 6.
