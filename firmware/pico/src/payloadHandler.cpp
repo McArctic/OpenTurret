@@ -1,5 +1,7 @@
 #include "payloadHandler.h"
 
+#include <cstring>
+
 //Ripped from datasheet. Not gonna pretend I know what's going on with the checksome. (I didn't read it)
 uint8_t tmc_crc(const uint8_t *data, size_t len) {
     uint8_t crc = 0;
@@ -65,5 +67,34 @@ bool readReg(uart_inst_t* uart, uint32_t *out, Register reg) {
      |  static_cast<uint32_t>(data[6]);
 
     return true;
+}
+
+bool writeReg(uart_inst_t* uart, uint32_t data, Register reg) {
+
+    uint8_t payload[8];
+    payload[0] = 0x05;
+    payload[1] = 0x00;
+    payload[2] = reg | 0x80;
+    payload[3] = (data >> 24) & 0xFF;
+    payload[4] = (data >> 16) & 0xFF;
+    payload[5] = (data >> 8) & 0xFF;
+    payload[6] = data & 0xFF;
+    payload[7] = tmc_crc(payload, 7);
+
+    uart_write_blocking(uart, payload, 8);
+
+    uint8_t echo[8];
+    if (readUart(uart, echo, 8, 5000) == false) {
+        return false;
+    }
+
+    //verify
+    uint32_t reading;
+    if (readReg(uart, &reading, reg) == false) return false;
+
+    if (reading == data) return true;
+
+    return false;
+
 }
 

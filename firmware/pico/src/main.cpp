@@ -44,10 +44,19 @@ void initUart() {
 
     uart_set_fifo_enabled(PAN_UART_ID, true);
     uart_set_fifo_enabled(TILT_UART_ID, true);
+}
 
-    //Send Initial UART for setup
-    //Default amps =
+void configDriver(uart_inst_t *uart, const char* name) {
 
+    uint32_t defaultConfig =  0x101;
+    uint32_t modified = defaultConfig | (1u << 6);
+    modified = modified | (1u << 7);
+
+    while (writeReg(uart, modified, GCONF) != true) {
+        printf("%s: GCONF write failed, Retrying \n", name);
+        sleep_ms(100);
+    };
+    printf("%s: GCONF set. \n", name);
 }
 
 
@@ -72,6 +81,7 @@ void setup() {
     initPins();
 
     //Config Drivers
+    configDriver(PAN_UART_ID, "pan");
 }
 
 
