@@ -8,7 +8,12 @@ project(OpenTurret CXX C ASM)
 
 pico_sdk_init()
 
-add_executable(OpenTurret src/main.cpp)
+add_executable(OpenTurret src/main.cpp
+        src/payloadHandler.cpp
+        src/payloadHandler.h)
+
+pico_enable_stdio_usb(OpenTurret 1)
+pico_enable_stdio_uart(OpenTurret 0)
 
 target_link_libraries(OpenTurret pico_stdlib)
 
