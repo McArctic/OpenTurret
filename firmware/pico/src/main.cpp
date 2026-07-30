@@ -2,25 +2,24 @@
 
 #include "pico/stdlib.h"
 #include "payloadHandler.h"
+#include "debug.h"                  // [OT_DEBUG]
 
 #ifndef PAN_STEPPER_PINS
 #define DIR_PIN_PAN 14
 #define STEP_PIN_PAN 15
-#define UART0_TX_PIN_PAN 0
-#define UART0_RX_PIN_PAN 1
-#define PAN_UART_ID uart0
-#define LED_PIN PICO_DEFAULT_LED_PIN
+#define PAN_UART_ADDR 0x0
 #endif
 
 #ifndef TILT_STEPPER_PINS
 #define DIR_PIN_TILT 10
 #define STEP_PIN_TILT 11
-#define UART1_TX_PIN_TILT 4
-#define UART1_RX_PIN_TILT 5
-#define TILT_UART_ID uart1
+#define TILT_UART_ADDR 0x1
 #endif
 
 #ifndef UART_CONF
+#define UART_ID uart0
+#define UART0_TX_PIN 0
+#define UART0_RX_PIN 1
 #define BAUD_RATE 115200
 #endif
 
@@ -29,30 +28,24 @@
 #endif
 
 void initUart() {
-    gpio_set_function(UART0_TX_PIN_PAN, GPIO_FUNC_UART);
-    gpio_set_function(UART0_RX_PIN_PAN, GPIO_FUNC_UART);
-
-    gpio_set_function(UART1_TX_PIN_TILT, GPIO_FUNC_UART);
-    gpio_set_function(UART1_RX_PIN_TILT, GPIO_FUNC_UART);
+    gpio_set_function(UART0_TX_PIN, GPIO_FUNC_UART);
+    gpio_set_function(UART0_RX_PIN, GPIO_FUNC_UART);
 
     //Drive wants to be stupid and have only one uart port so I slapped a 1k resistor on the tx line.
-    gpio_set_drive_strength(UART0_TX_PIN_PAN, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_drive_strength(UART1_TX_PIN_TILT, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_drive_strength(UART0_TX_PIN, GPIO_DRIVE_STRENGTH_2MA);
 
-    uart_init(PAN_UART_ID, BAUD_RATE);
-    uart_init(TILT_UART_ID, BAUD_RATE);
+    uart_init(UART_ID, BAUD_RATE);
 
-    uart_set_fifo_enabled(PAN_UART_ID, true);
-    uart_set_fifo_enabled(TILT_UART_ID, true);
+    uart_set_fifo_enabled(UART_ID, true);
 }
 
-void configDriver(uart_inst_t *uart, const char* name) {
+void configDriver(uart_inst_t *uart, uint8_t address, const char* name) {
 
     uint32_t defaultConfig =  0x101;
     uint32_t modified = defaultConfig | (1u << 6);
     modified = modified | (1u << 7);
 
-    while (writeReg(uart, modified, GCONF) != true) {
+    while (writeReg(uart, address, GCONF, modified) != true) {
         printf("%s: GCONF write failed, Retrying \n", name);
         sleep_ms(100);
     };
@@ -80,25 +73,28 @@ void setup() {
     initUart();
     initPins();
 
-    //Config Drivers
-    configDriver(PAN_UART_ID, "pan");
+    configDriver(UART_ID, PAN_UART_ADDR, "pan");
+    configDriver(UART_ID, TILT_UART_ADDR, "tilt");
 }
 
 
 int main() {
     setup();
 
-    //Read GCONF off the pan driver once a second and print it.
-    //Loops forever so it does not matter when the terminal connects.
     while (true) {
         uint32_t gconf = 0;
 
-        if (readReg(PAN_UART_ID, &gconf, GCONF)) {
-            printf("GCONF = 0x%08X\n", (unsigned int) gconf);
+        if (readReg(UART_ID, PAN_UART_ADDR, GCONF, &gconf)) {
+            printf("pan  GCONF = 0x%08X\n", (unsigned int) gconf);
         } else {
-            printf("GCONF read failed\n");
+            printf("pan  GCONF read failed\n");
         }
 
+        if (readReg(UART_ID, TILT_UART_ADDR, GCONF, &gconf)) {
+            printf("tilt  GCONF = 0x%08X\n", (unsigned int) gconf);
+        } else {
+            printf("tilt +  GCONF read failed\n");
+        }
         sleep_ms(1000);
     }
 }

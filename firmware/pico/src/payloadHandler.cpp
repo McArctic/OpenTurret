@@ -27,11 +27,11 @@ bool readUart(uart_inst_t *uart, uint8_t *bytes, size_t len, uint32_t timeout) {
     return true;
 }
 
-bool readReg(uart_inst_t* uart, uint32_t *out, Register reg) {
+bool readReg(uart_inst_t* uart, uint8_t addr, Register reg, uint32_t *out) {
     //make payload
     uint8_t payload[4];
     payload[0] = 0x05; //Header
-    payload[1] = 0x00;
+    payload[1] = addr;
     payload[2] = reg;
     payload[3] = tmc_crc(payload, 3);
 
@@ -69,11 +69,11 @@ bool readReg(uart_inst_t* uart, uint32_t *out, Register reg) {
     return true;
 }
 
-bool writeReg(uart_inst_t* uart, uint32_t data, Register reg) {
+bool writeReg(uart_inst_t* uart, uint8_t addr, Register reg, uint32_t data) {
 
     uint8_t payload[8];
     payload[0] = 0x05;
-    payload[1] = 0x00;
+    payload[1] = addr;
     payload[2] = reg | 0x80;
     payload[3] = (data >> 24) & 0xFF;
     payload[4] = (data >> 16) & 0xFF;
@@ -90,7 +90,7 @@ bool writeReg(uart_inst_t* uart, uint32_t data, Register reg) {
 
     //verify
     uint32_t reading;
-    if (readReg(uart, &reading, reg) == false) return false;
+    if (readReg(uart, addr, reg, &reading) == false) return false;
 
     if (reading == data) return true;
 

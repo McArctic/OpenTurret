@@ -23,7 +23,7 @@ enum Register {
 
 uint8_t tmc_crc(const uint8_t *data, size_t len);
 bool readUart(uart_inst_t *uart, uint8_t *bytes, size_t len, uint32_t timeout);
-bool readReg(uart_inst_t *uart, uint32_t *out, Register reg);
-bool writeReg(uart_inst_t* uart, uint32_t data, Register reg);
+bool readReg(uart_inst_t* uart, uint8_t addr, Register reg, uint32_t *out);
+bool writeReg(uart_inst_t* uart, uint8_t addr, Register reg, uint32_t data);
 
 #endif
