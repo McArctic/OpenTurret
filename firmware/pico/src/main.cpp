@@ -2,7 +2,6 @@
 
 #include "pico/stdlib.h"
 #include "payloadHandler.h"
-#include "debug.h"                  // [OT_DEBUG]
 
 #ifndef PAN_STEPPER_PINS
 #define DIR_PIN_PAN 14
@@ -39,17 +38,28 @@ void initUart() {
     uart_set_fifo_enabled(UART_ID, true);
 }
 
-void configDriver(uart_inst_t *uart, uint8_t address, const char* name) {
+bool configDriver(uart_inst_t *uart, uint8_t address, const char* name) {
 
     uint32_t defaultConfig =  0x101;
-    uint32_t modified = defaultConfig | (1u << 6);
+    uint32_t modified = defaultConfig & ~(1u << 0);
+    modified = modified | (1u << 6);
     modified = modified | (1u << 7);
 
-    while (writeReg(uart, address, GCONF, modified) != true) {
-        printf("%s: GCONF write failed, Retrying \n", name);
-        sleep_ms(100);
-    };
-    printf("%s: GCONF set. \n", name);
+    uint32_t irun = 21; //1.21 A
+    uint32_t ihold = 13;
+    uint32_t iholDdelay = 4;
+
+    uint32_t currentConfig = iholDdelay << 16;
+    currentConfig = currentConfig | (irun << 8);
+    currentConfig = currentConfig | (ihold << 0);
+
+
+    while (!writeReg(uart, address, GCONF, modified) && !writeReg(uart, address, IHOLD_IRUN, currentConfig)) {
+        printf("%s: Failed to config", name);
+        sleep_ms(500);
+    }
+    printf("%s: Configured", name);
+    return true;
 }
 
 
@@ -80,21 +90,4 @@ void setup() {
 
 int main() {
     setup();
-
-    while (true) {
-        uint32_t gconf = 0;
-
-        if (readReg(UART_ID, PAN_UART_ADDR, GCONF, &gconf)) {
-            printf("pan  GCONF = 0x%08X\n", (unsigned int) gconf);
-        } else {
-            printf("pan  GCONF read failed\n");
-        }
-
-        if (readReg(UART_ID, TILT_UART_ADDR, GCONF, &gconf)) {
-            printf("tilt  GCONF = 0x%08X\n", (unsigned int) gconf);
-        } else {
-            printf("tilt +  GCONF read failed\n");
-        }
-        sleep_ms(1000);
-    }
 }
