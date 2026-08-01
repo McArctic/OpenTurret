@@ -2,6 +2,7 @@
 
 #include "pico/stdlib.h"
 #include "payloadHandler.h"
+#include "objects/Stepper.h"
 
 #ifndef PAN_STEPPER_PINS
 #define DIR_PIN_PAN 14
@@ -38,30 +39,6 @@ void initUart() {
     uart_set_fifo_enabled(UART_ID, true);
 }
 
-bool configDriver(uart_inst_t *uart, uint8_t address, const char* name) {
-
-    uint32_t defaultConfig =  0x101;
-    uint32_t modified = defaultConfig & ~(1u << 0);
-    modified = modified | (1u << 6);
-    modified = modified | (1u << 7);
-
-    uint32_t irun = 21; //1.21 A
-    uint32_t ihold = 13;
-    uint32_t iholDdelay = 4;
-
-    uint32_t currentConfig = iholDdelay << 16;
-    currentConfig = currentConfig | (irun << 8);
-    currentConfig = currentConfig | (ihold << 0);
-
-
-    while (!writeReg(uart, address, GCONF, modified) && !writeReg(uart, address, IHOLD_IRUN, currentConfig)) {
-        printf("%s: Failed to config", name);
-        sleep_ms(500);
-    }
-    printf("%s: Configured", name);
-    return true;
-}
-
 
 
 void initPins() {
@@ -77,16 +54,36 @@ void initPins() {
     gpio_set_dir(STEP_PIN_TILT, GPIO_OUT);
 }
 
-void setup() {
-    stdio_init_all();
-
-    initUart();
-    initPins();
-
-    configDriver(UART_ID, PAN_UART_ADDR, "pan");
-    configDriver(UART_ID, TILT_UART_ADDR, "tilt");
+void waitForDriverPower(uart_inst_t *uart) {
+    printf("Waiting for driver power...\n");
+    while (true) {
+        for (uint8_t addr = 0; addr <= 3; addr++) {
+            uint32_t discard;
+            if (readReg(uart, addr, GCONF, &discard)) {
+                printf("Driver power detected.\n");
+                return;
+            }
+        }
+    }
 }
 
+void setup() {
+    printf("setuop");
+    stdio_init_all();
+    initUart();
+    initPins();
+    waitForDriverPower(UART_ID);
+
+    Stepper panStepper = Stepper(UART_ID, DIR_PIN_PAN, STEP_PIN_PAN, PAN_UART_ADDR, "pan");
+    Stepper tiltStepper = Stepper(UART_ID, DIR_PIN_TILT, STEP_PIN_TILT, TILT_UART_ADDR, "tilt");
+
+    if (!panStepper.configure()) {
+        printf("Failed To Configure Pan Stepper");
+    }
+    if (!tiltStepper.configure()) {
+        printf("Failed To Configure Tilt Stepper");
+    }
+}
 
 int main() {
     setup();

@@ -12,7 +12,9 @@ add_executable(OpenTurret src/main.cpp
         src/payloadHandler.cpp
         src/payloadHandler.h
         src/stepperController.cpp
-        src/stepperController.h)
+        src/stepperController.h
+        src/objects/stepper.cpp
+        src/objects/stepper.h)
 
 pico_enable_stdio_usb(OpenTurret 1)
 pico_enable_stdio_uart(OpenTurret 0)

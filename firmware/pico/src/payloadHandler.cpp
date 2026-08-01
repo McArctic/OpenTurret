@@ -71,6 +71,12 @@ bool readReg(uart_inst_t* uart, uint8_t addr, Register reg, uint32_t *out) {
 
 bool writeReg(uart_inst_t* uart, uint8_t addr, Register reg, uint32_t data) {
 
+    //Clear the queue. Stale bytes here shift the echo read below and every
+    //byte after it reads garbage - readReg already does this, writeReg never did.
+    while (uart_is_readable(uart)) {
+        uart_getc(uart);
+    }
+
     uint8_t payload[8];
     payload[0] = 0x05;
     payload[1] = addr;
