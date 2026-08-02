@@ -19,7 +19,6 @@ add_executable(OpenTurret src/main.cpp
 pico_enable_stdio_usb(OpenTurret 1)
 pico_enable_stdio_uart(OpenTurret 0)
 
-target_link_libraries(OpenTurret pico_stdlib
-        hardware_watchdog)                  # [OT_DEBUG] scratch regs only
+target_link_libraries(OpenTurret pico_stdlib)
 
 pico_add_extra_outputs(OpenTurret)

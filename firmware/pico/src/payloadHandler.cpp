@@ -2,6 +2,24 @@
 
 #include <cstring>
 
+#include "pico/time.h"
+
+//One byte at 115200 8N1 takes ~87us. Waiting a couple of byte times before
+//draining means bytes still on the wire land in the FIFO first, so we
+//actually discard them instead of reading them as the start of the reply.
+static constexpr uint32_t DRAIN_GUARD_US = 200;
+
+//The driver needs to finish latching a write before it will answer anything
+//else on the bus. Without this the next datagram gets dropped.
+static constexpr uint32_t WRITE_SETTLE_US = 2000;
+
+static void flushRx(uart_inst_t *uart) {
+    sleep_us(DRAIN_GUARD_US);
+    while (uart_is_readable(uart)) {
+        uart_getc(uart);
+    }
+}
+
 //Ripped from datasheet. Not gonna pretend I know what's going on with the checksome. (I didn't read it)
 uint8_t tmc_crc(const uint8_t *data, size_t len) {
     uint8_t crc = 0;
@@ -35,10 +53,7 @@ bool readReg(uart_inst_t* uart, uint8_t addr, Register reg, uint32_t *out) {
     payload[2] = reg;
     payload[3] = tmc_crc(payload, 3);
 
-    //Clear the queue.
-    while (uart_is_readable(uart)) {
-        uart_getc(uart);
-    }
+    flushRx(uart);
 
     uart_write_blocking(uart, payload, 4);
 
@@ -69,13 +84,14 @@ bool readReg(uart_inst_t* uart, uint8_t addr, Register reg, uint32_t *out) {
     return true;
 }
 
-bool writeReg(uart_inst_t* uart, uint8_t addr, Register reg, uint32_t data) {
+bool writeReg(uart_inst_t* uart, uint8_t addr, Register reg, uint32_t data, bool verify) {
 
-    //Clear the queue. Stale bytes here shift the echo read below and every
-    //byte after it reads garbage - readReg already does this, writeReg never did.
-    while (uart_is_readable(uart)) {
-        uart_getc(uart);
+    uint32_t countBefore = 0;
+    if (verify && readReg(uart, addr, IFCNT, &countBefore) == false) {
+        return false;
     }
+
+    flushRx(uart);
 
     uint8_t payload[8];
     payload[0] = 0x05;
@@ -94,13 +110,19 @@ bool writeReg(uart_inst_t* uart, uint8_t addr, Register reg, uint32_t data) {
         return false;
     }
 
-    //verify
-    uint32_t reading;
-    if (readReg(uart, addr, reg, &reading) == false) return false;
+    //Reading the echo only proves our own bytes made it back around the
+    //single wire bus, not that the driver did anything with them.
+    sleep_us(WRITE_SETTLE_US);
 
-    if (reading == data) return true;
+    if (verify == false) {
+        return true;
+    }
 
-    return false;
+    uint32_t countAfter = 0;
+    if (readReg(uart, addr, IFCNT, &countAfter) == false) {
+        return false;
+    }
 
+    return ((countAfter - countBefore) & 0xFF) == 1;
 }
 

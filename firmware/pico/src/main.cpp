@@ -73,7 +73,8 @@ void setup() {
     initUart();
     initPins();
     waitForDriverPower(UART_ID);
-
+    printf("Allowing driver to start up");
+    sleep_ms(5000);
     Stepper panStepper = Stepper(UART_ID, DIR_PIN_PAN, STEP_PIN_PAN, PAN_UART_ADDR, "pan");
     Stepper tiltStepper = Stepper(UART_ID, DIR_PIN_TILT, STEP_PIN_TILT, TILT_UART_ADDR, "tilt");
 

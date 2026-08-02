@@ -46,11 +46,15 @@ bool Stepper::configure() const {
     currentConfig = currentConfig | (irun << 8);
     currentConfig = currentConfig | (ihold << 0);
 
-    bool test1 = writeReg(uart, address, GCONF, modified);
-    bool test2 = writeReg(uart, address, IHOLD_IRUN, currentConfig);
+    bool gconfOk = writeReg(uart, address, GCONF, modified);
+    bool currentOk = writeReg(uart, address, IHOLD_IRUN, currentConfig);
 
-    printf("%hhd", test1);
-    printf("%hhd", test2);
+    if (gconfOk == false) {
+        printf("%s: GCONF write not accepted\n", name);
+    }
+    if (currentOk == false) {
+        printf("%s: IHOLD_IRUN write not accepted\n", name);
+    }
 
-    return test1 && test2;
+    return gconfOk && currentOk;
 }
