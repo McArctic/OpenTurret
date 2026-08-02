@@ -23,9 +23,6 @@
 #define BAUD_RATE 115200
 #endif
 
-#ifndef STEP_PULSE_US
-#define STEP_PULSE_US 2
-#endif
 
 void initUart() {
     gpio_set_function(UART0_TX_PIN, GPIO_FUNC_UART);
@@ -37,21 +34,6 @@ void initUart() {
     uart_init(UART_ID, BAUD_RATE);
 
     uart_set_fifo_enabled(UART_ID, true);
-}
-
-
-
-void initPins() {
-    gpio_init(DIR_PIN_PAN);
-    gpio_init(STEP_PIN_PAN);
-
-    gpio_init(DIR_PIN_TILT);
-    gpio_init(STEP_PIN_TILT);
-
-    gpio_set_dir(DIR_PIN_PAN, GPIO_OUT);
-    gpio_set_dir(STEP_PIN_PAN, GPIO_OUT);
-    gpio_set_dir(DIR_PIN_TILT, GPIO_OUT);
-    gpio_set_dir(STEP_PIN_TILT, GPIO_OUT);
 }
 
 void waitForDriverPower(uart_inst_t *uart) {
@@ -67,25 +49,47 @@ void waitForDriverPower(uart_inst_t *uart) {
     }
 }
 
-void setup() {
-    printf("setuop");
+void setup(Stepper &panStepper, Stepper &tiltStepper) {
+    printf("setup \n");
     stdio_init_all();
     initUart();
-    initPins();
     waitForDriverPower(UART_ID);
-    printf("Allowing driver to start up");
+    printf("Allowing driver to start up \n");
     sleep_ms(5000);
-    Stepper panStepper = Stepper(UART_ID, DIR_PIN_PAN, STEP_PIN_PAN, PAN_UART_ADDR, "pan");
-    Stepper tiltStepper = Stepper(UART_ID, DIR_PIN_TILT, STEP_PIN_TILT, TILT_UART_ADDR, "tilt");
 
     if (!panStepper.configure()) {
-        printf("Failed To Configure Pan Stepper");
+        printf("Failed To Configure Pan Stepper \n");
     }
+    printf("Configured pan \n");
     if (!tiltStepper.configure()) {
-        printf("Failed To Configure Tilt Stepper");
+        printf("Failed To Configure Tilt Stepper \n");
     }
+    printf("Configured step \n");
 }
 
 int main() {
-    setup();
+    Stepper panStepper = Stepper(UART_ID, DIR_PIN_PAN, STEP_PIN_PAN, PAN_UART_ADDR, "pan");
+    Stepper tiltStepper = Stepper(UART_ID, DIR_PIN_TILT, STEP_PIN_TILT, TILT_UART_ADDR, "tilt");
+    setup(panStepper, tiltStepper);
+
+    while (true) {
+        tiltStepper.setStepRes(0);
+        tiltStepper.step(200);
+        tiltStepper.setDirection(true);
+        tiltStepper.step(200);
+        tiltStepper.setDirection(false);
+
+        tiltStepper.setStepRes(128);
+        tiltStepper.step(200);
+        tiltStepper.setDirection(false);
+        tiltStepper.step(200);
+
+        tiltStepper.setDirection(true);
+        tiltStepper.setStepRes(0);
+        tiltStepper.step(180);
+        tiltStepper.setDirection(true);
+        tiltStepper.step(120);
+        tiltStepper.setDirection(false);
+    }
+
 }

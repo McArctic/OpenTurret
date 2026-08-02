@@ -1,19 +1,12 @@
 #ifndef OPENTURRET_STEPPER_H
 #define OPENTURRET_STEPPER_H
 
-#ifndef PAN_STEPPER_PINS
-#define DIR_PIN_PAN 14
-#define STEP_PIN_PAN 15
-#define PAN_UART_ADDR 0x0
 #include <cstdint>
 
 #include "hardware/uart.h"
-#endif
 
-#ifndef TILT_STEPPER_PINS
-#define DIR_PIN_TILT 10
-#define STEP_PIN_TILT 11
-#define TILT_UART_ADDR 0x1
+#ifndef STEP_PULSE_US
+#define STEP_PULSE_US 1000
 #endif
 
 class Stepper {
@@ -22,16 +15,29 @@ private:
     int stepPin;
     uint8_t address;
     uart_inst_t *uart;
-    char* name;
+    const char* name;
+    bool direction; //True is reversed
+    uint8_t stepRes; //Can go to 256
+    uint32_t gconf;
+    uint32_t ihold_irun;
+    uint32_t chopconf;
 
 public:
-    Stepper(uart_inst_t *uart, int directionPin, int stepPin, uint8_t address, char* name);
+    Stepper(uart_inst_t *uart, int directionPin, int stepPin, uint8_t address, const char* name);
 
     int getDirectionPin() const;
     int getStepPin() const;
     uint8_t getAddress() const;
-    char* getName() const;
-    bool configure() const;
+    const char* getName() const;
+    bool getDirection() const;
+    int getStepRes() const;
+    bool setStepRes(int microsteps);
+    void setDirection(bool direction);
+    void initGPIO() const;
+    bool configure();
+    void step() const;
+    void step(int count) const;
+
 };
 
 

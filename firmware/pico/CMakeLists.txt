@@ -11,8 +11,6 @@ pico_sdk_init()
 add_executable(OpenTurret src/main.cpp
         src/payloadHandler.cpp
         src/payloadHandler.h
-        src/stepperController.cpp
-        src/stepperController.h
         src/objects/stepper.cpp
         src/objects/stepper.h)
 
